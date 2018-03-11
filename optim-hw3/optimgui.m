@@ -56,6 +56,11 @@ else
     end
 end
 
+% get the brackets
+%h=evalin('base','h');
+%x = [get(h,'xdata'); get(h,'ydata')];
+%[a_bracket, c_bracket, b_bracket] = bracket(get_fname, get_gname, x);
+
 %x=-2:.05:2;
 %y=-1:.05:2.25;
 x=-3:.05:3;
@@ -119,7 +124,8 @@ while ~done
       set(h,'xdata',pt(1,1),'ydata',pt(1,2))
       set(x0,'string',num2str(pt(1,1)))
       set(y0,'string',num2str(pt(1,2)))
-      set(f_h,'string',num2str(optimgui('f_rosenb',[pt(1,1); pt(1,2)])))
+      %set(f_h,'string',num2str(optimgui('f_rosenb',[pt(1,1); pt(1,2)])))
+      set(f_h,'string',num2str(optimgui(get_fname,[pt(1,1); pt(1,2)])))
 
   case 'up'
       done = 1;
@@ -152,23 +158,33 @@ function optimize
 
   am = get(algMenu,'value');
 
+  
   switch am
   case {1,2,3,4,5,6}  % gradient or conjugate gradient
     k=0;
     x = [get(h,'xdata'); get(h,'ydata')];
     set(l,'xdata',x(1),'ydata',x(2))
+    % find a bracket
+    [a_bracket, c_bracket, b_bracket] = bracket(get_fname, get_gname, x);
+    if strcmp(get_fname , 'f_rastrigin')
+        x = b_bracket;
+    end
+    x = b_bracket;
+    
     %g = g_rosenb(x);
     g = feval(get_gname, x);
     d = -g;
     while norm(g)>1e-6
       set(iter_h,'string',num2str(k))
-      set(f_h,'string',num2str(optimgui('f_rosenb',x)))
+      %set(f_h,'string',num2str(optimgui('f_rosenb',x)))
+      set(f_h,'string',num2str(optimgui(get_fname,x)))
 
       if am==1  % fixed step size
           alpha=str2num(get(step_h,'string'));
       else  % do line search
           %alpha=linesearch_secant('g_rosenb',x,d);
-          alpha=linesearch_secant(get_gname,x,d);
+          %alpha=linesearch_secant(get_gname,x,d);
+          alpha=linesearch_fibonacci(get_fname, a_bracket, b_bracket);
       end
       x = x + alpha*d;
       %g1 = g_rosenb(x);
@@ -210,7 +226,8 @@ function optimize
     d = -H*g;
     while norm(g)>1e-6
       set(iter_h,'string',num2str(k))
-      set(f_h,'string',num2str(optimgui('f_rosenb',x)))
+      %set(f_h,'string',num2str(optimgui('f_rosenb',x)))
+      set(f_h,'string',num2str(optimgui(get_fname,x)))
 
       %alpha=linesearch_secant('g_rosenb',x,d);
       alpha=linesearch_secant(get_gname,x,d);
@@ -258,7 +275,8 @@ function optimize
     d = -inv(feval(get_Fname,x))*g;
     while norm(g)>1e-6
       set(iter_h,'string',num2str(k))
-      set(f_h,'string',num2str(optimgui('f_rosenb',x)))
+      %set(f_h,'string',num2str(optimgui('f_rosenb',x)))
+      set(f_h,'string',num2str(optimgui(get_fname,x)))
 
       %alpha=linesearch_secant('g_rosenb',x,d);
       alpha=linesearch_secant(get_gname,x,d);
@@ -312,22 +330,102 @@ F = [-400*(x(2,:)-3*x(1,:).^2)+2    -400*x(1,:);
 %%
 %------------------------------------------------------------
 function f=f_rastrigin(x)
-    f = 20 + sum((x/10).^2 - 10*cos(x*pi/5)); 
+    f = 20 + (x(1,:)/10).^2 - 10*cos(x(1,:)*pi/5) + ...
+             (x(2,:)/10).^2 - 10*cos(x(2,:)*pi/5); 
 
 
 function g = g_rastrigin(x)
-    g = [x(1)/50 + 2*pi*sin(x(1)*pi/5);
-         x(2)/50 + 2*pi*sin(x(2)*pi/5)]; 
+    g = [x(1,:)/50 + 2*pi*sin(x(1,:)*pi/5);
+         x(2,:)/50 + 2*pi*sin(x(2,:)*pi/5)]; 
 
 function F = F_rastrigin(x)
-    F = [1/50 + 2*pi^2/5*cos(x(1)*pi/5),         0                        ;
-              0                        ,    1/50 + 2*pi^2/5*cos(x(1)*pi/5)];
+    F = [1/50 + 2*pi^2/5*cos(x(1,:)*pi/5),         0                        ;
+              0                        ,    1/50 + 2*pi^2/5*cos(x(1,:)*pi/5)];
  
 
 %%Line search algorithms
-function [a0 b0] = linesearch_bracket(fname
+
+function [a c b] = bracket(func, grad,x)
+% a: left bracket, b: right bracket, c: intermediate node
+epsilon = 0.075;
+a = x;
+c = a;
+b = x - epsilon * feval(grad, x);
+
+res = realmax;
+while res > feval(func, b)
+  res = feval(func, b);
+  a = c;
+  c = b;
+  b = b - epsilon * feval(grad, b);
+  epsilon = epsilon * 2;
+  fprintf("epsilon = %6.3f\n",epsilon);
+  fprintf("   left = [%6.3f %6.3f]\n",a);
+  fprintf("  right = [%6.3f %6.3f]\n",c);
+  fprintf("      x = [%6.3f %6.3f]\n",b);
+  fprintf(" f(left)= %6.3f \n",feval(func, a));
+  fprintf("f(right)= %6.3f \n",feval(func, c));
+  fprintf("    f(x)= %6.3f \n",feval(func, b));
+  fprintf(" region width = %6.3f\n", norm(a-b));
+  fprintf("\n");
+end
+
 %------------------------------------------------------------
-function alpha=linesearch_fibonacci(grad,x,d)
+function alpha=linesearch_fibonacci(func,a_bracket,b_bracket)
+n = 8;
+rho = 1-fibonacci(n)/fibonacci(n+1);
+a0 = a_bracket;
+b0 = b_bracket;
+%b0 = a0 - 1;
+a1 = a0 + rho*(b0-a0);
+b1 = b0 - rho*(b0-a0);
+
+i = 0;
+fprintf("Fibonacci method\n");
+fprintf("dir|it|   a_k           |   b_k           |");
+fprintf("f(a_k)|f(b_k)| width| rho\n");
+fprintf("------|-----------------|------------------");
+fprintf("------|------|------|----\n");
+fprintf(" ><|%2d| [%6.3f %6.3f] | [%6.3f %6.3f] |%6.3f|%6.3f|%6.3f|%6.3f\n", ...
+  i, a0, b0, feval(func,a0), feval(func,b0), norm(a0-b0),rho);  
+while n > 1
+  i = i+1;
+  n = n-1;
+  rho = 1-fibonacci(n)/fibonacci(n+1);
+  if rho == 0.5
+    rho = 0.5 -0.01;
+  end
+  if feval(func,a1) < feval(func,b1) % the range will reduce to [a0 , b1]
+    fprintf("a0<");
+    b0 = b1;
+    b1 = a1;
+    a1 = a0 + rho*(b0-a0);
+  else % the range will reduce to [a1, b0]
+    fprintf("b0<");
+    a0 = a1;
+    a1 = b1;
+    b1 = b0 - rho*(b0-a0);
+  end
+  
+  fprintf("|%2d| [%6.3f %6.3f] | [%6.3f %6.3f] |%6.3f|%6.3f|%6.3f|%6.3f\n", ...
+    i, a0, b0, feval(func,a0), feval(func,b0), norm(a0-b0),rho);
+end
+v=[feval(func,a0), feval(func,a1), feval(func,b1), feval(func,b0)];
+i = find(v==min(v));
+v = [a0, a1, b1, b0];
+switch i(1)
+    case 1
+        alpha=a0;
+    case 2
+        alpha=a1;
+    case 3
+        alpha=b1;
+    case 4
+        alpha=b0;
+end
+% I have problem with this fibonacci line search. Why am I looking for an
+% alpha anyway? It really doesn't make sense.
+
 
 
 function alpha=linesearch_secant(grad,x,d)
