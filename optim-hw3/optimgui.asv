@@ -48,7 +48,7 @@ else
         case 1
             set_fname('f_rosenb');
             set_gname('g_rosenb');
-            set_Fname('H_rosenb');
+            set_Fname('F_rosenb');
         case 2
             set_fname('f_rastrigin');
             set_gname('g_rastrigin');
@@ -184,8 +184,7 @@ function optimize
           %alpha=linesearch_fibonacci(get_fname, a_bracket, b_bracket);
           [a_bracket, c_bracket, b_bracket] = bracket(get_fname, get_gname, x);
     
-          %x = linesearch('secant', get_gname, x,d);
-          x = linesearch('fibonacci', get_fname, a_bracket, b_bracket, 8);
+          x = linesearch('secant', get_gname, x,d);
       end
       %x = x + alpha*d;
       
@@ -273,7 +272,7 @@ function optimize
     set(l,'xdata',x(1),'ydata',x(2))
     %g = g_rosenb(x)
     g = feval(get_gname, x);
-    %d = -inv(H_rosenb(x))*g;
+    %d = -inv(F_rosenb(x))*g;
     d = -inv(feval(get_Fname,x))*g;
     while norm(g)>1e-6
       set(iter_h,'string',num2str(k))
@@ -286,7 +285,7 @@ function optimize
       
       %g = g_rosenb(x);
       g = feval(get_gname, x);
-      %d = -inv(H_rosenb(x))*g;
+      %d = -inv(F_rosenb(x))*g;
       d = -inv(feval(get_Fname, x))*g;
 
       xd = get(l,'xdata'); yd=get(l,'ydata');
@@ -324,9 +323,9 @@ function g=g_rosenb(x)
 g = [-400*(x(2,:)-x(1,:).^2).*x(1,:)-2*(1-x(1,:));
       200*(x(2,:)-x(1,:).^2) ];
       
-function H=H_rosenb(x)
+function F=F_rosenb(x)
 % Hessian of rosenblatt's "banana" function
-H = [-400*(x(2,:)-3*x(1,:).^2)+2    -400*x(1,:);
+F = [-400*(x(2,:)-3*x(1,:).^2)+2    -400*x(1,:);
       -400*x(1,:)   200];
 
 %%
@@ -338,32 +337,30 @@ function [a c b] = bracket(func, grad,x)
 epsilon = 0.075;
 a = x;
 c = a;
-g = feval(grad, x);
-b = x - epsilon * g/norm(g);
+b = x - epsilon * feval(grad, x);
 
 res = realmax;
 while res > feval(func, b)
   res = feval(func, b);
   a = c;
   c = b;
-  g = feval(grad, b);
-  b = b - epsilon * g/norm(g);
+  b = b - epsilon * feval(grad, b);
   epsilon = epsilon * 2;
-  %fprintf("epsilon = %6.3f\n",epsilon);
-  %fprintf("   left = [%6.3f %6.3f]\n",a);
-  %fprintf("  right = [%6.3f %6.3f]\n",c);
-  %fprintf("      x = [%6.3f %6.3f]\n",b);
-  %fprintf(" f(left)= %6.3f \n",feval(func, a));
-  %fprintf("f(right)= %6.3f \n",feval(func, c));
-  %fprintf("    f(x)= %6.3f \n",feval(func, b));
-  %fprintf(" region width = %6.3f\n", norm(a-b));
-  %fprintf("\n");
+  fprintf("epsilon = %6.3f\n",epsilon);
+  fprintf("   left = [%6.3f %6.3f]\n",a);
+  fprintf("  right = [%6.3f %6.3f]\n",c);
+  fprintf("      x = [%6.3f %6.3f]\n",b);
+  fprintf(" f(left)= %6.3f \n",feval(func, a));
+  fprintf("f(right)= %6.3f \n",feval(func, c));
+  fprintf("    f(x)= %6.3f \n",feval(func, b));
+  fprintf(" region width = %6.3f\n", norm(a-b));
+  fprintf("\n");
 end
 
 %------------------------------------------------------------
 function varargout=linesearch(varargin)
 % linesearch('secant', grad, x,d);
-% linesearch('fibonacci', func, a, b, n);
+% linesearch('fibonacci', f, a, b, n);
 if nargin == 0
     disp('Wrong number of arguments passed to linesearch');
     return;
@@ -377,10 +374,10 @@ if strcmp(varargin{1}, 'secant')
     x=x+alpha*d;
 elseif strcmp(varargin{1}, 'fibonacci')
     func = varargin{2};
-    a = varargin{3};
-    b = varargin{4};
-    n = varargin{5};
-    x=linesearch_fibonacci(func, a, b, n);
+    x = varargin{3};
+    d= varargin{4};
+    
+    x=linesearch_fibonacci(f_name, a, b, n)
 end
 varargout{1} = x;
 
