@@ -60,9 +60,6 @@ else
     end
 end
 
-x=-2:.05:2;
-y=-1:.05:2.25;
-
 x0 = findobj(gcf,'tag','x0');
 y0 = findobj(gcf,'tag','y0');
 x0 = str2num (get(x0,'String'));
@@ -70,18 +67,6 @@ y0 = str2num (get(y0,'String'));
 
 x=x0-4:.05:x0+4;
 y=y0-4:.05:y0+4;
-
-%x = str2num (get(x0,'String'));
-%y = str2num (get(y0,'String'));
-
-%x = 1;
-%y = 1;
-%x=x-3:.05:x+3;
-%y=y-3:.05:y+3;
-
-%x=-9.5:.05:9.5;
-%y=-9.5:.05:9.5;
-
 
 [X,Y]=meshgrid(x,y);
 f=feval(get_fname,[X(:)';  Y(:)']);
@@ -203,14 +188,10 @@ function optimize
       if am==1  % fixed step size
           alpha=str2num(get(step_h,'string'));
       else  % do line search
-          %alpha=linesearch_secant('g_rosenb',x,d);
-          %alpha=linesearch_secant(get_gname,x,d);
-          %[a_bracket, c_bracket, b_bracket] = bracket(get_fname, get_gname, x);
-          [a_bracket, c_bracket, b_bracket] = bracket_alpha(get_fname, x, 0.001, d);
-          
           %alpha = linesearch('secant', get_gname, x,d);
+          
+          [a_bracket, c_bracket, b_bracket] = bracket_alpha(get_fname, x, 0.001, d);
           alpha = linesearch('fibonacci', get_fname, x, d, a_bracket, b_bracket, 10);
-          %alpha = linesearch('fibonacci', get_fname, x, d, 0, 1, 8);
       end
       x = x + alpha*d;
       
