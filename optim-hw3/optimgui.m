@@ -193,6 +193,9 @@ function optimize
           [a_bracket, c_bracket, b_bracket] = bracket_alpha(get_fname, x, 0.001, d);
           alpha = linesearch('fibonacci', get_fname, x, d, a_bracket, b_bracket, 10);
       end
+      if alpha==0
+          break;
+      end
       x = x + alpha*d;
       
       %g1 = g_rosenb(x);
@@ -219,7 +222,11 @@ function optimize
       d = -g + beta*d;
       xd = get(l,'xdata'); yd=get(l,'ydata');
       set(l,'xdata',[xd(:); x(1)],'ydata',[yd(:); x(2)])
-
+    
+      result = feval(get_fname, x);
+      % iteration|[Xk] | f(Xk)| g(Xk)
+      fprintf("%4d | [%6.3e , %6.3e]' | %6.3e | [%6.3e , %6.3e]'\n",...
+          k, x(1), x(2), result, g(1), g(2));
       drawnow
       if ~isempty(get(Pushbutton1_h,'userdata'))
           break
