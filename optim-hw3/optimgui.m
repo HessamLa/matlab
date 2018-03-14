@@ -13,8 +13,12 @@ function varargout=optimgui(varargin)
 %  the method, the optimization begins.  
 
 % T. Krauss  2/13/98
-           
+
+%if ~exist('flag','persistent')
+%end
+
 if nargin == 0
+    delete(findall(0,'Type','figure'));
     init
     setfunc
     return
@@ -56,31 +60,50 @@ else
     end
 end
 
-% get the brackets
-%h=evalin('base','h');
-%x = [get(h,'xdata'); get(h,'ydata')];
-%[a_bracket, c_bracket, b_bracket] = bracket(get_fname, get_gname, x);
+x=-2:.05:2;
+y=-1:.05:2.25;
 
-%x=-2:.05:2;
-%y=-1:.05:2.25;
-x=-3:.05:3;
-y=-3:.05:3;
+x0 = findobj(gcf,'tag','x0');
+y0 = findobj(gcf,'tag','y0');
+x0 = str2num (get(x0,'String'));
+y0 = str2num (get(y0,'String'));
+
+x=x0-4:.05:x0+4;
+y=y0-4:.05:y0+4;
+
+%x = str2num (get(x0,'String'));
+%y = str2num (get(y0,'String'));
+
+%x = 1;
+%y = 1;
+%x=x-3:.05:x+3;
+%y=y-3:.05:y+3;
+
+%x=-9.5:.05:9.5;
+%y=-9.5:.05:9.5;
+
 
 [X,Y]=meshgrid(x,y);
 f=feval(get_fname,[X(:)';  Y(:)']);
 hold off;
 f=reshape(f,length(y),length(x));
-contour(x,y,f,[1 3 7 16 32 64 128])
+%contour(x,y,f,[1 3 7 16 32 64 128])
+contour(x,y,f,[1:2:40])
 hold on;
 xlabel('x_1')
 ylabel('x_2')
 %title('Minimization of Rosenbrock function')
-plot(1,1,'o')
-text(1,1,'Solution')
+%plot(1,1,'o')
+%text(1,1,'Solution')
 grid on
-l = line(-1.2,2,'erasemode','xor','marker','o','linewidth',1.5,'color','r');
+
+%l = line(-1.2,2,'erasemode','xor','marker','o','linewidth',1.5,'color','r');
+%assignin('base','l',l)
+%h = line(-1.2,2,'erasemode','xor','linestyle','none','marker','x',...
+% 'markersize',14,'linewidth',1.5,'buttondownfcn','optimgui(''startdown'')');
+l = line(x0,y0,'erasemode','xor','marker','o','linewidth',1.5,'color','r');
 assignin('base','l',l)
-h = line(-1.2,2,'erasemode','xor','linestyle','none','marker','x',...
+h = line(x0,y0,'erasemode','xor','linestyle','none','marker','x',...
  'markersize',14,'linewidth',1.5,'buttondownfcn','optimgui(''startdown'')');
 assignin('base','h',h)
 x0=findobj(gcf,'tag','x0');
@@ -93,12 +116,14 @@ set(y0,'string',num2str(get(h,'ydata')))
 function x0change
 h=evalin('base','h');
 set(h,'xdata',str2num(get(findobj(gcf,'tag','x0'),'string')))
+setfunc
 optimgui('optimize')
 
 %------------------------------------------------------------
 function y0change
 h=evalin('base','h');
 set(h,'ydata',str2num(get(findobj(gcf,'tag','y0'),'string')))
+setfunc
 optimgui('optimize')
 
 %------------------------------------------------------------
@@ -171,26 +196,28 @@ function optimize
     g = feval(get_gname, x);
     d = -g;
     while norm(g)>1e-6
-      set(iter_h,'string',num2str(k))
+      set(iter_h, 'string',num2str(k))
       %set(f_h,'string',num2str(optimgui('f_rosenb',x)))
-      set(f_h,'string',num2str(optimgui(get_fname,x)))
+      set(f_h, 'string',num2str(optimgui(get_fname,x)))
 
       if am==1  % fixed step size
           alpha=str2num(get(step_h,'string'));
-          x = x + alpha*d;
       else  % do line search
           %alpha=linesearch_secant('g_rosenb',x,d);
           %alpha=linesearch_secant(get_gname,x,d);
-          %alpha=linesearch_fibonacci(get_fname, a_bracket, b_bracket);
-          [a_bracket, c_bracket, b_bracket] = bracket(get_fname, get_gname, x);
-    
-          %x = linesearch('secant', get_gname, x,d);
-          x = linesearch('fibonacci', get_fname, a_bracket, b_bracket, 8);
+          %[a_bracket, c_bracket, b_bracket] = bracket(get_fname, get_gname, x);
+          [a_bracket, c_bracket, b_bracket] = bracket_alpha(get_fname, x, 0.001, d);
+          
+          %alpha = linesearch('secant', get_gname, x,d);
+          alpha = linesearch('fibonacci', get_fname, x, d, a_bracket, b_bracket, 10);
+          %alpha = linesearch('fibonacci', get_fname, x, d, 0, 1, 8);
       end
-      %x = x + alpha*d;
+      x = x + alpha*d;
       
       %g1 = g_rosenb(x);
       g1 = feval(get_gname, x);
+      %disp(['x=', x, '| alpha=', alpha, '| g(x)=', g1]);
+      %disp([x', alpha, g1']);
       switch am
       case {1,2}  % gradient
         beta = 0;
@@ -232,14 +259,18 @@ function optimize
       set(f_h,'string',num2str(optimgui(get_fname,x)))
 
       %alpha=linesearch_secant('g_rosenb',x,d);
-      alpha=linesearch_secant(get_gname,x,d);
+      %alpha=linesearch_secant(get_gname,x,d);
+      [a_bracket, c_bracket, b_bracket] = bracket_alpha(get_fname, x, 0.001, d);
+      alpha = linesearch('fibonacci', get_fname, x, d, a_bracket, b_bracket, 10);
       
-      x = x + alpha*d;
-      
+      delx = alpha*d;
+      x = x + delx;
       %g1=g_rosenb(x)
       g1 = feval(get_gname, x);
-      delx = alpha*d;
       delg = g1-g;
+      if delg==0
+          break;
+      end
       switch am
       case 7  % rank-1
         z = delx - H*delg;
@@ -333,37 +364,47 @@ H = [-400*(x(2,:)-3*x(1,:).^2)+2    -400*x(1,:);
 %------------------------------------------------------------
 %%Line search algorithms
 
-function [a c b] = bracket(func, grad,x)
+function [a c b] = bracket(func, grad,x, alpha)
 % a: left bracket, b: right bracket, c: intermediate node
-epsilon = 0.075;
+epsilon = alpha;
 a = x;
 c = a;
-g = feval(grad, x);
-b = x - epsilon * g/norm(g);
+d = feval(grad, x);
+b = x - epsilon * d/norm(d);
 
 res = realmax;
 while res > feval(func, b)
   res = feval(func, b);
   a = c;
   c = b;
-  g = feval(grad, b);
-  b = b - epsilon * g/norm(g);
+  d = feval(grad, b);
+  b = b - epsilon * d/norm(d);
   epsilon = epsilon * 2;
-  %fprintf("epsilon = %6.3f\n",epsilon);
-  %fprintf("   left = [%6.3f %6.3f]\n",a);
-  %fprintf("  right = [%6.3f %6.3f]\n",c);
-  %fprintf("      x = [%6.3f %6.3f]\n",b);
-  %fprintf(" f(left)= %6.3f \n",feval(func, a));
-  %fprintf("f(right)= %6.3f \n",feval(func, c));
-  %fprintf("    f(x)= %6.3f \n",feval(func, b));
-  %fprintf(" region width = %6.3f\n", norm(a-b));
-  %fprintf("\n");
+end
+
+function [a c b] = bracket_alpha(func, x, epsilon, d)
+% one dimensional line search for alpha
+d = d/norm(d);
+%initially alpha is in range [a=0, b=epsilon]
+a = 0;
+c = 0;
+b = epsilon;
+p = epsilon*d; % using this to increase speed
+
+res = realmax;
+while res > feval(func, x+p)
+  res = feval(func, x+p);
+  a = c;
+  c = b;
+  b = b+b;
+  p = p+p;
+  %epsilon = epsilon * 2;
 end
 
 %------------------------------------------------------------
 function varargout=linesearch(varargin)
 % linesearch('secant', grad, x,d);
-% linesearch('fibonacci', func, a, b, n);
+% linesearch('fibonacci', func, x, d, alpha0, alpha1, N);
 if nargin == 0
     disp('Wrong number of arguments passed to linesearch');
     return;
@@ -374,15 +415,16 @@ if strcmp(varargin{1}, 'secant')
     x = varargin{3};
     d= varargin{4};
     alpha=linesearch_secant(grad,x,d);
-    x=x+alpha*d;
+    
 elseif strcmp(varargin{1}, 'fibonacci')
-    func = varargin{2};
-    a = varargin{3};
-    b = varargin{4};
-    n = varargin{5};
-    x=linesearch_fibonacci(func, a, b, n);
+    %func = varargin{2};
+    %a = varargin{3};
+    %b = varargin{4};
+    %n = varargin{5};
+    %alpha=linesearch_fibonacci(func, a, b, n);
+    alpha=linesearch_fibonacci(varargin{2:nargin});
 end
-varargout{1} = x;
+varargout{1} = alpha;
 
 
 function alpha=linesearch_secant(grad,x,d)
@@ -410,7 +452,6 @@ dphi_curr=dphi_zero;
       break;
    end
  end %while
- 
  
 %------------------------------------------------------------
 function init
@@ -477,10 +518,12 @@ h1 = uicontrol('Parent',h0, ...
 	'String','Y0', ...
 	'Style','text', ...
 	'Tag','StaticText1');
+
+%This was excluded from the following: 'Callback','optimgui(''x0change'')', ...
 h1 = uicontrol('Parent',h0, ...
 	'Units','normalized', ...
 	'BackgroundColor',[1 1 1], ...
-	'Callback','optimgui(''x0change'')', ...
+    'Callback','optimgui(''x0change'')', ...
 	'FontSize',10, ...
 	'FontWeight','bold', ...
 	'ListboxTop',0, ...
@@ -488,10 +531,11 @@ h1 = uicontrol('Parent',h0, ...
 	'String','-1.2', ...
 	'Style','edit', ...
 	'Tag','x0');
+%This was excluded from the following: 'Callback','optimgui(''y0change'')', ...
 h1 = uicontrol('Parent',h0, ...
 	'Units','normalized', ...
 	'BackgroundColor',[1 1 1], ...
-	'Callback','optimgui(''y0change'')', ...
+    'Callback','optimgui(''y0change'')', ...
 	'FontSize',10, ...
 	'FontWeight','bold', ...
 	'ListboxTop',0, ...
