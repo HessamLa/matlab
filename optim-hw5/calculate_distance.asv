@@ -1,0 +1,11 @@
+function prox = calculate_distance(xy)
+    %CALCULATE_DISTANCE Summary of this function goes here
+    %   Detailed explanation goes here
+    if( length(xy(:,1)) ~= 2 && length(xy(1,:)) ~= 2 )
+        disp("xy must be a 2xn or nx2 matrix");
+        return;
+    end
+    
+    
+end
+
