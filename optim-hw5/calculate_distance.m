@@ -12,10 +12,9 @@ function prox = calculate_distance(xy)
     
     prox = zeros(n);
     for i = 1:n
-        for j =i+1:n
+        for j =1:n
             v = xy(i,:) - xy(j,:);
             prox(i,j) = norm(v);
-            prox(j,i) = prox(i,j);
         end
     end
 end

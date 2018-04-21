@@ -23,5 +23,7 @@ function XY = generate_points(n, rangex, rangey)
     r = rangey(2) - rangey(1);
     y = rand(n,1)*r + rangey(1);
     
-    XY = [x y];   
+    XY = [x y];
+    %figure
+    %scatter(x,y);
     
